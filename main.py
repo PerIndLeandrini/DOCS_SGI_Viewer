@@ -5,10 +5,13 @@ from PIL import Image
 import streamlit_authenticator as stauth
 import io
 import base64
+import streamlit as st
+from PIL import Image
+import streamlit_authenticator as stauth
 
 st.set_page_config(page_title="SGI Viewer", page_icon="📁", layout="wide")
 
-# ----- LOGIN -----
+# ----- LOGIN (da secrets) -----
 auth_cfg = st.secrets["auth"]
 
 credentials = {"usernames": {}}
@@ -22,12 +25,26 @@ authenticator = stauth.Authenticate(
     auth_cfg["cookie_expiry_days"],
 )
 
+# qui facciamo compatibilità nuova/vecchia versione
 login_fields = {
     "Form name": "Login",
     "Username": "Username",
     "Password": "Password",
     "Login": "Accedi",
 }
+
+try:
+    # versioni nuove (quelle che hai in locale)
+    name, auth_status, username = authenticator.login(
+        fields=login_fields,
+        location="main",
+    )
+except TypeError:
+    # versioni vecchie (quelle che il cloud ti ha installato)
+    name, auth_status, username = authenticator.login(
+        "Login",
+        "main",
+    )
 
 name, auth_status, username = authenticator.login(
     fields=login_fields,
