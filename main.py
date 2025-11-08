@@ -7,7 +7,7 @@ import io
 
 st.set_page_config(page_title="SGI Viewer", page_icon="📁", layout="wide")
 
-# ----- LOGIN (da secrets) -----
+# ====== LOGIN ======
 auth_cfg = st.secrets["auth"]
 
 # secrets è read-only. lo copiamo
@@ -29,25 +29,24 @@ login_fields = {
     "Login": "Accedi",
 }
 
-# una sola chiamata. prima provo con la firma nuova, se no uso la vecchia
+# versione compatibile cloud
 try:
+    # per le versioni nuove (quelle che vogliono location come primo argomento)
     name, auth_status, username = authenticator.login(
+        "main",
         fields=login_fields,
-        location="main",
     )
 except TypeError:
-    # firma vecchia
-    name, auth_status, username = authenticator.login(
-        "Login",
-        "main",
-    )
+    # per le versioni che non accettano fields
+    name, auth_status, username = authenticator.login("main")
 
+# ====== GESTIONE LOGIN ======
 if auth_status is False:
     st.error("Credenziali non corrette.")
 elif auth_status is None:
     st.warning("Inserisci username e password.")
 else:
-    # ----- SIDEBAR -----
+    # ====== SIDEBAR ======
     try:
         logo = Image.open("logo.png")
         st.sidebar.image(logo, use_container_width=True)
@@ -58,7 +57,7 @@ else:
     authenticator.logout("Logout", "sidebar")
     st.sidebar.markdown("---")
 
-    # ----- GOOGLE DRIVE -----
+    # ====== GOOGLE DRIVE ======
     from google.oauth2 import service_account as g_service_account
 
     google_info = st.secrets["google"]
@@ -82,7 +81,7 @@ else:
 
     search = st.text_input("Cerca documento")
 
-    # ----- FUNZIONI -----
+    # ====== FUNZIONI ======
     def list_files_in_folder(folder_id: str):
         q = f"'{folder_id}' in parents and trashed = false"
         res = drive_service.files().list(
@@ -107,10 +106,13 @@ else:
         return items[0]["id"] if items else None
 
     def show_drive_preview(file_id: str, height: int = 700):
-        iframe = f'<iframe src="https://drive.google.com/file/d/{file_id}/preview" width="100%" height="{height}" allow="autoplay"></iframe>'
+        iframe = (
+            f'<iframe src="https://drive.google.com/file/d/{file_id}/preview" '
+            f'width="100%" height="{height}" allow="autoplay"></iframe>'
+        )
         st.markdown(iframe, unsafe_allow_html=True)
 
-    # ---------- SEZIONI ----------
+    # ====== SEZIONI ======
     if sezione == "Documenti di vertice":
         st.subheader("Documenti di vertice")
         q = (
@@ -159,9 +161,7 @@ else:
                     if f["mimeType"] != "application/vnd.google-apps.folder"
                 ]
                 if search:
-                    files = [
-                        f for f in files if search.lower() in f["name"].lower()
-                    ]
+                    files = [f for f in files if search.lower() in f["name"].lower()]
 
     else:
         st.subheader("Altre cartelle")
@@ -218,7 +218,7 @@ else:
             if search:
                 files = [f for f in files if search.lower() in f["name"].lower()]
 
-    # ---------- UI PRINCIPALE ----------
+    # ====== UI PRINCIPALE ======
     if not files:
         st.info("Nessun documento trovato.")
     else:
@@ -232,6 +232,7 @@ else:
 
         if st.button("Apri anteprima", key="preview_btn"):
             if mime.startswith("image/"):
+                # le immagini le scarichiamo perché sono leggere
                 req = drive_service.files().get_media(fileId=file_id)
                 img_bytes = io.BytesIO(req.execute())
                 st.image(img_bytes, use_container_width=True)
