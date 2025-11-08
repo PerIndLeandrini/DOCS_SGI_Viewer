@@ -1,0 +1,23 @@
+# --- FILES TO IGNORE ---
+
+# Dati sensibili e credenziali
+.streamlit/
+service_account.json
+
+# Ambienti virtuali
+.venv/
+venv/
+env/
+
+# Cache e file temporanei
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.DS_Store
+
+# Config locali
+.env
+.idea/
+.vscode/
