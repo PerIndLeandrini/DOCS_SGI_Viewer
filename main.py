@@ -3,6 +3,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from PIL import Image
 import io
+import os
 
 st.set_page_config(page_title="SGI Viewer", page_icon="📁", layout="wide")
 
