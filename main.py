@@ -44,11 +44,21 @@ if st.sidebar.button("Logout"):
     st.session_state.name = None
     st.rerun()
 
+# --- LOGO DINAMICO PER CLIENTE ---
+logo_dir = "LOGHI"
+logo_name = f"logo_{cliente_scelto}.png".replace(" ", "_").lower()
+logo_path = os.path.join(logo_dir, logo_name)
+
 try:
-    logo = Image.open("logo.png")
+    logo = Image.open(logo_path)
     st.sidebar.image(logo, use_container_width=True)
 except FileNotFoundError:
-    st.sidebar.warning("Logo non trovato (logo.png)")
+    # fallback al logo generico
+    try:
+        logo = Image.open(os.path.join(logo_dir, "logo.png"))
+        st.sidebar.image(logo, use_container_width=True)
+    except FileNotFoundError:
+        st.sidebar.warning("Logo non trovato")
 
 st.sidebar.markdown("### SGI Viewer")
 st.sidebar.markdown("---")
