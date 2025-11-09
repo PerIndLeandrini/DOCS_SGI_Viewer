@@ -12,13 +12,11 @@ st.set_page_config(page_title="SGI Viewer", page_icon="📁", layout="wide")
 auth_cfg = st.secrets["auth"]
 users_cfg = auth_cfg["credentials"]["usernames"]
 
-# inizializzo stato login
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = None
     st.session_state.name = None
 
-# se non loggato mostro form
 if not st.session_state.logged_in:
     st.title("SGI Viewer")
     with st.form("login_form"):
@@ -27,21 +25,18 @@ if not st.session_state.logged_in:
         submitted = st.form_submit_button("Accedi")
 
     if submitted:
-        if username_input in users_cfg:
-            user = users_cfg[username_input]
-            # in questo progetto stiamo usando password IN CHIARO nel secrets
-            if password_input == user["password"]:
-                st.session_state.logged_in = True
-                st.session_state.username = username_input
-                st.session_state.name = user.get("name", username_input)
-                st.rerun()
-            else:
-                st.error("Password non corretta.")
+        if username_input in users_cfg and password_input == users_cfg[username_input]["password"]:
+            st.session_state.logged_in = True
+            st.session_state.username = username_input
+            st.session_state.name = users_cfg[username_input].get("name", username_input)
+            st.rerun()
         else:
-            st.error("Username non trovato.")
+            st.error("Credenziali non corrette.")
     st.stop()
 
-# da qui in giù sei autenticato
+# =========================
+# SIDEBAR
+# =========================
 st.sidebar.write(f"👤 {st.session_state.name}")
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -49,9 +44,6 @@ if st.sidebar.button("Logout"):
     st.session_state.name = None
     st.rerun()
 
-# =========================
-# SIDEBAR (logo ecc.)
-# =========================
 try:
     logo = Image.open("logo.png")
     st.sidebar.image(logo, use_container_width=True)
@@ -60,6 +52,14 @@ except FileNotFoundError:
 
 st.sidebar.markdown("### SGI Viewer")
 st.sidebar.markdown("---")
+
+# =========================
+# SCELTA CLIENTE
+# =========================
+folders_cfg = st.secrets["folders"]
+clienti = list(folders_cfg.keys())
+cliente_scelto = st.sidebar.selectbox("Cliente", clienti)
+ROOT_FOLDER_ID = folders_cfg[cliente_scelto]
 
 # =========================
 # GOOGLE DRIVE
@@ -73,8 +73,6 @@ creds = g_service_account.Credentials.from_service_account_info(
 )
 drive_service = build("drive", "v3", credentials=creds)
 
-ROOT_FOLDER_ID = "10TaZC51gHSv3szzz_Kbd_8MF0zuN_5n6"
-
 sezione = st.sidebar.radio(
     "Sezione",
     [
@@ -87,9 +85,6 @@ sezione = st.sidebar.radio(
 
 search = st.text_input("Cerca documento")
 
-# =========================
-# FUNZIONI
-# =========================
 def list_files_in_folder(folder_id: str):
     q = f"'{folder_id}' in parents and trashed = false"
     res = drive_service.files().list(
@@ -124,7 +119,7 @@ def show_drive_preview(file_id: str, height: int = 700):
 # SEZIONI
 # =========================
 if sezione == "Documenti di vertice":
-    st.subheader("Documenti di vertice")
+    st.subheader(f"Documenti di vertice . {cliente_scelto}")
     q = (
         f"'{ROOT_FOLDER_ID}' in parents and trashed = false "
         "and mimeType != 'application/vnd.google-apps.folder'"
@@ -139,7 +134,7 @@ if sezione == "Documenti di vertice":
     files = res.get("files", [])
 
 elif sezione == "Procedure operative":
-    st.subheader("Procedure operative")
+    st.subheader(f"Procedure operative . {cliente_scelto}")
     proc_id = find_subfolder_id(ROOT_FOLDER_ID, "PROCEDURE OPERATIVE")
     if not proc_id:
         st.error("Cartella 'PROCEDURE OPERATIVE' non trovata.")
@@ -154,7 +149,7 @@ elif sezione == "Procedure operative":
             files = [f for f in files if search.lower() in f["name"].lower()]
 
 elif sezione == "Moduli procedure":
-    st.subheader("Moduli delle procedure")
+    st.subheader(f"Moduli delle procedure . {cliente_scelto}")
     proc_id = find_subfolder_id(ROOT_FOLDER_ID, "PROCEDURE OPERATIVE")
     if not proc_id:
         st.error("Cartella 'PROCEDURE OPERATIVE' non trovata.")
@@ -174,7 +169,7 @@ elif sezione == "Moduli procedure":
                 files = [f for f in files if search.lower() in f["name"].lower()]
 
 else:
-    st.subheader("Altre cartelle")
+    st.subheader(f"Altre cartelle . {cliente_scelto}")
     root_items = list_files_in_folder(ROOT_FOLDER_ID)
     root_folders = [
         i for i in root_items if i["mimeType"] == "application/vnd.google-apps.folder"
@@ -183,7 +178,7 @@ else:
     root_folders = [f for f in root_folders if f["name"] not in esclusi]
 
     if not root_folders:
-        st.info("Nessuna altra cartella trovata.")
+        st.info("Nessun’altra cartella trovata.")
         files = []
     else:
         cartella_scelta = st.selectbox(
@@ -224,7 +219,7 @@ else:
             files = [f for f in files if search.lower() in f["name"].lower()]
 
 # =========================
-# UI PRINCIPALE (anteprima leggera)
+# ANTEPRIMA
 # =========================
 if not files:
     st.info("Nessun documento trovato.")
@@ -239,7 +234,6 @@ else:
 
     if st.button("Apri anteprima", key="preview_btn"):
         if mime.startswith("image/"):
-            # le immagini le scarichiamo perché sono leggere
             req = drive_service.files().get_media(fileId=file_id)
             img_bytes = io.BytesIO(req.execute())
             st.image(img_bytes, use_container_width=True)
